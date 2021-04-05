@@ -368,7 +368,7 @@ void getCounterExample(vector<implicationBS> &basis, int s)
 			{
 				lck.lock();
 
-				//globalFlag is false until a counterexample has been found
+				//globalFlag is true until a counterexample has been found
 				// if(globalFlag) // If this line is not commented then quality increases with threads
 				{	
 					globalFlag = false;
@@ -387,7 +387,7 @@ void getCounterExample(vector<implicationBS> &basis, int s)
 			{	
 				lck.lock();
 
-				//globalFlag is false until a counterexample has been found
+				//globalFlag is true until a counterexample has been found
 				// if(globalFlag) // If this line is not commented then quality increases with threads
 				{	
 					globalFlag = false;
