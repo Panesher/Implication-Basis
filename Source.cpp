@@ -46,8 +46,8 @@ double thisIterMaxContextClosureTime = 0;
 double updownTime = 0;
 int numThreads = 1, maxThreads;
 long long totCounterExamples = 0;
-bool globalFlag; //For terminating other threads in case one thread found a counter-example
-boost::dynamic_bitset<unsigned long> counterExampleBS;
+atomic<bool> globalFlag, globalFlag1; //For terminating other threads in case one thread found a counter-example
+boost::dynamic_bitset<unsigned long> counterExampleBS, counterExampleBS1;
 int gCounter = 0; //For counting how many times the equivalence oracle has been used
 int totTries = 0;
 long long sumTotTries = 0;
@@ -340,7 +340,7 @@ void getCounterExample(vector<implicationBS> &basis, int s)
 	int threadTries = 0;
 	boost::dynamic_bitset<unsigned long> X;
 
-	for (int i = s; i < maxTries && globalFlag; i += numThreads)
+	for (int i = s; i < maxTries && (globalFlag.load() || globalFlag1.load()); i += numThreads)
 	{ //Each thread handles an equal number of iterations.
 		threadTries++;
 
@@ -369,7 +369,15 @@ void getCounterExample(vector<implicationBS> &basis, int s)
 				lck.lock();
 
 				//globalFlag is true until a counterexample has been found
-				// if(globalFlag) // If this line is not commented then quality increases with threads
+				if(globalFlag1.load()) 
+				{
+					globalFlag1 = false;
+					counterExampleBS1 = cL;
+					lck.unlock();
+					break;
+				}
+
+				if(globalFlag.load()) // If this line is not commented then quality increases with threads
 				{	
 					globalFlag = false;
 					counterExampleBS = cL;
@@ -377,6 +385,12 @@ void getCounterExample(vector<implicationBS> &basis, int s)
 				}
 				
 				lck.unlock();
+				// auto temp = true;
+				
+				// if(globalFlag.compare_exchange_strong(temp, false)) {
+				// 	counterExampleBS = cL;
+				// }
+
 				break;
 			}
 		}
@@ -554,6 +568,7 @@ vector<implication> generateImplicationBasis(ThreadPool &threadPool)
 		getLoopCount();
 		//cout << "Max number of tries for this iteration: " << maxTries << "\n";
 		globalFlag = true;
+		globalFlag1 = true;
 		counterExampleBS.clear();
 		thisIterMaxContextClosureTime = 0;
 		thisIterMaxImplicationClosureTime = 0;
@@ -592,6 +607,12 @@ vector<implication> generateImplicationBasis(ThreadPool &threadPool)
 		updownTime += thisIterMaxContextClosureTime;
 		totalClosureTime += thisIterMaxImplicationClosureTime;
 
+		if(globalFlag && (globalFlag1 == false))
+		{
+			globalFlag = false;
+			counterExampleBS = counterExampleBS1;
+		}
+
 		if (globalFlag && bothCounterExamples)
 		{
 			bothCounterExamples = false;
@@ -603,7 +624,8 @@ vector<implication> generateImplicationBasis(ThreadPool &threadPool)
 		sumTotTries += totTries;
 		if (globalFlag)
 			break;
-
+		
+		// assert(contextClosureBS(counterExampleBS) != closureBS(ansBS, counterExampleBS));
 		boost::dynamic_bitset<unsigned long> X = counterExampleBS;
 		//printVector(X);
 		totCounterExamples++;
