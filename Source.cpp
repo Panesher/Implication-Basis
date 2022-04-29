@@ -6,7 +6,7 @@
 #include <map>
 #include <algorithm>
 #include <thread>
-#include <mutex> // std::mutex, std::unique_lock, std::defer_lock
+#include <mutex>
 #include <set>
 #include <time.h>
 #include <stdlib.h>
@@ -60,7 +60,7 @@ int implicationsSeen;
 std::mutex mtx; // mutex for critical section
 vector<boost::dynamic_bitset<unsigned long>> potentialCounterExamplesBS;
 double epsilon, del;
-bool epsilonStrong = false, frequentCounterExamples = false, bothCounterExamples = false;
+bool epsilonStrong = false;
 int maxTries; //Updated by getLoopCount() based on the value of gCounter, epsilon and delta.
 bool implicationSupport = false;
 bool emptySetClosureComputed = false;
@@ -70,9 +70,11 @@ long long aEqualToCCount = 0;
 
 std::random_device rd;
 std::discrete_distribution<int> discreteDistribution;
+std::discrete_distribution<int> areaBasedDistribution;
+boost::dynamic_bitset<unsigned long>(*distributionFunction)();
+
 std::default_random_engine re(rd());
 
-vector<long double> attrSetWeight;
 vector<implicationBS> ansBasisBS;
 
 double threadOverheadTime = 6;
@@ -137,7 +139,7 @@ void readFormalContext2(string fileName)
 
 void initializeRandSetGen()
 {
-	attrSetWeight.resize(objInp.size());
+  vector<long double> attrSetWeight(objInp.size());
 
 	for (int i = 0; i < objInp.size(); i++)
 	{
@@ -145,6 +147,18 @@ void initializeRandSetGen()
 	}
 
 	discreteDistribution = std::discrete_distribution<int>(attrSetWeight.begin(), attrSetWeight.end());
+}
+
+void initializeAreaBasedDistribution()
+{
+  vector<long double> attrSetWeight(objInp.size());
+
+	for (int i = 0; i < objInp.size(); i++)
+	{
+		attrSetWeight[i] = (long double)pow((long double)2, (long double)objInp[i].size() - 1) * objInp[i].size();
+	}
+
+	areaBasedDistribution = std::discrete_distribution<int>(attrSetWeight.begin(), attrSetWeight.end());
 }
 
 void getLoopCount()
@@ -320,6 +334,59 @@ boost::dynamic_bitset<unsigned long> getRandomSubsetBS(boost::dynamic_bitset<uns
 	return ansSet;
 }
 
+inline int rand(int upperBound)
+{
+  return rand() % (upperBound + 1);
+}
+
+boost::dynamic_bitset<unsigned long> ReservoirSample(const boost::dynamic_bitset<unsigned long> &set, const size_t subsetSize)
+{
+  int i = 0;
+  vector<int> resultMap(subsetSize);
+  for (size_t setI = 0; setI < set.size(); setI++) {
+    if (set.test(setI)) {
+      if (i < subsetSize) {
+        resultMap[i] = setI;
+      } else {
+        int j = rand(i);
+        if (j < subsetSize) {
+          resultMap[j] = setI;
+        }
+      }
+      ++i;
+    }
+  }
+
+  boost::dynamic_bitset<unsigned long> resultBitset(set.size());
+  for (const auto &setI : resultMap) {
+    resultBitset.set(setI);
+  }
+
+  return resultBitset;
+}
+
+size_t getRandomSubsetSize(const size_t size)
+{
+  vector<long double> w(size + 1);
+  w[1] = size;
+  for (size_t i = 2; i <= size; i++) {
+    w[i] = w[i - 1] * (size - i + 1) / (i - 1);
+  }
+
+  return discrete_distribution<int>(w.begin(), w.end())(re);
+}
+
+boost::dynamic_bitset<unsigned long> getPowerBasedSubset(const boost::dynamic_bitset<unsigned long> &set)
+{
+  size_t subsetSize = getRandomSubsetSize(set.count());
+  return ReservoirSample(set, subsetSize);
+}
+
+boost::dynamic_bitset<unsigned long> getAreaBasedSetBS()
+{
+	return getPowerBasedSubset(objInpBS[areaBasedDistribution(re)]);
+}
+
 boost::dynamic_bitset<unsigned long> getFrequentAttrSetBS()
 {
 	return getRandomSubsetBS(objInpBS[discreteDistribution(re)]);
@@ -344,10 +411,7 @@ void getCounterExample(vector<implicationBS> &basis, int s)
 	{ //Each thread handles an equal number of iterations.
 		threadTries++;
 
-		if (frequentCounterExamples)
-			X = getFrequentAttrSetBS();
-		else
-			X = getRandomAttrSetBS();
+    X = distributionFunction();
 
 		auto start = chrono::high_resolution_clock::now();
 		boost::dynamic_bitset<unsigned long> cX = contextClosureBS(X);
@@ -591,14 +655,6 @@ vector<implication> generateImplicationBasis(ThreadPool &threadPool)
 
 		updownTime += thisIterMaxContextClosureTime;
 		totalClosureTime += thisIterMaxImplicationClosureTime;
-
-		if (globalFlag && bothCounterExamples)
-		{
-			bothCounterExamples = false;
-			frequentCounterExamples = false;
-			gCounter = max(0, gCounter - 1);
-			continue;
-		}
 
 		sumTotTries += totTries;
 		if (globalFlag)
@@ -915,13 +971,9 @@ void initFrequencyOrderedAttributes()
 		frequencyOrderedAttributes.push_back(freqPairs[i].second);
 }
 
-int main(int argc, char **argv)
+void initArgs(int argc, char **argv)
 {
-	auto startTime = chrono::high_resolution_clock::now();
-	srand(time(NULL));
-	//cout <<"argc = "<< argc << "\n";
-
-	if (argc != 8)
+  if (argc != 8)
 	{
 		printUsageAndExit();
 	}
@@ -933,26 +985,33 @@ int main(int argc, char **argv)
 	del = atof(argv[3]);
 	if (string(argv[4]) == string("strong"))
 		epsilonStrong = true;
-	if (string(argv[5]) == string("frequent"))
-		frequentCounterExamples = true;
-	if (string(argv[5]) == string("both"))
-		bothCounterExamples = true;
-	if (bothCounterExamples)
-		frequentCounterExamples = true;
+	if (argv[5] == "frequent") {
+    distributionFunction = &getFrequentAttrSetBS;
+  } else if (argv[5] == "area-based") {
+    distributionFunction = &getAreaBasedSetBS;
+  } else {
+    distributionFunction = &getRandomAttrSetBS;
+  }
+
 	maxThreads = atoi(argv[6]);
 	numThreads = 1;
 	if (string(argv[7]) == string("support"))
 		implicationSupport = true;
+}
+
+int main(int argc, char **argv)
+{
+	auto startTime = chrono::high_resolution_clock::now();
+	srand(time(NULL));
+  initArgs(argc, argv);
 	
 	ThreadPool threadPool(maxThreads - 1);
 	fillPotentialCounterExamples();
 	initializeRandSetGen();
 	vector<implication> ans = generateImplicationBasis(threadPool);
-	// cout << totalTime << "\n";
 
 	auto endTime = chrono::high_resolution_clock::now();
-	double TotalExecTime = 0;
-	TotalExecTime += (chrono::duration_cast<chrono::microseconds>(endTime - startTime)).count();
+	double TotalExecTime = (chrono::duration_cast<chrono::microseconds>(endTime - startTime)).count();
 
 	if (implicationSupport)
 	{
@@ -963,20 +1022,20 @@ int main(int argc, char **argv)
 	for (int i = 2; i < 7; i++)
 		cout << argv[i] << ",";
 
-	cout << TIMEPRINT(TotalExecTime) << ",";
-	cout << TIMEPRINT(totalTime) << ",";
-	cout << TIMEPRINT(totalExecTime2) << ",";
-	cout << TIMEPRINT(totalClosureTime) << ",";
-	cout << TIMEPRINT(updownTime) << ",";
-	cout << totClosureComputations << ",";
-	cout << totUpDownComputes << ",";
-	cout << ans.size() << ",";
-	cout << totCounterExamples << ",";
-	cout << sumTotTries << ",";
-	cout << aEqualToCCount << ",";
-	cout << emptySetClosureComputes << ";" << flush;
+	cout << "Times: " << TIMEPRINT(TotalExecTime) << ", "
+	     << TIMEPRINT(totalTime) << ", "
+	     << TIMEPRINT(totalExecTime2) << ", "
+	     << TIMEPRINT(totalClosureTime) << ", "
+	     << TIMEPRINT(updownTime) << "\n"
+	     << "totClosureComputations: " << totClosureComputations << "\n"
+	     << "totUpDownComputes: " << totUpDownComputes << "\n"
+	     << "ans.size(): " << ans.size() << "\n"
+	     << "totCounterExamples: " << totCounterExamples << "\n"
+	     << "sumTotTries: " << sumTotTries << "\n"
+	     << "aEqualToCCount: " << aEqualToCCount << "\n"
+	     << "emptySetClosureComputes: " << emptySetClosureComputes << endl;
 	// cout << allContextClosures() << "," << flush;
-	cout << allImplicationClosures() << endl;
+	// cout << allImplicationClosures() << endl;
 
 	// for (auto x : ans) {
 	// 	// //cout << "Implication\n";

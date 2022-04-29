@@ -2,7 +2,7 @@ Results/
 fcai/
 Inputs/
 Outputs/
-a.out
+*.out
 exact
 cxtInputs/
 inputsCreator.cpp
