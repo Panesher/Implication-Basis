@@ -7,8 +7,7 @@
 #include <string>
 #include <vector>
 #include <iostream>
-
-class BasisCalculator;
+#include "Structs.h"
 
 class Oracle {
  protected:
@@ -26,10 +25,10 @@ class Oracle {
  public:
   virtual boost::dynamic_bitset<unsigned long> generate() = 0;
 
-  Oracle(BasisCalculator *calc);
+  Oracle(structs::Table *table);
 };
 
 std::shared_ptr<Oracle> createOracle(const std::string &type,
-                                     BasisCalculator *calc);
+                                     structs::Table *calc);
 
 #endif  // __ORACLE_H__

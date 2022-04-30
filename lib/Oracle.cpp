@@ -10,12 +10,12 @@ inline int randBound(int upperBound) { return rand() % (upperBound + 1); }
 
 }  // namespace
 
-Oracle::Oracle(BasisCalculator *calc)
+Oracle::Oracle(structs::Table *table)
     : rd(),
       re(rd()),
-      objInpBS(&calc->table.objInpBS),
-      objInp(&calc->table.objInp),
-      attrInp(&calc->table.attrInp) {}
+      objInpBS(&table->objInpBS),
+      objInp(&table->objInp),
+      attrInp(&table->attrInp) {}
 
 class BaseOracle : public Oracle {
  protected:
@@ -42,7 +42,7 @@ class BaseOracle : public Oracle {
   }
 
  public:
-  BaseOracle(BasisCalculator *calc) : Oracle(calc) {}
+  BaseOracle(structs::Table *table) : Oracle(table) {}
 };
 
 class UniformOracle : public BaseOracle {
@@ -54,7 +54,7 @@ class UniformOracle : public BaseOracle {
     return generateRandomSubsetBS(ans);
   }
 
-  UniformOracle(BasisCalculator *calc) : BaseOracle(calc) {}
+  UniformOracle(structs::Table *table) : BaseOracle(table) {}
 };
 
 class FrequentAttributeOracle : public BaseOracle {
@@ -63,7 +63,7 @@ class FrequentAttributeOracle : public BaseOracle {
     return generateRandomSubsetBS((*objInpBS)[distribution(re)]);
   }
 
-  FrequentAttributeOracle(BasisCalculator *calc) : BaseOracle(calc) {
+  FrequentAttributeOracle(structs::Table *table) : BaseOracle(table) {
     std::vector<long double> attrSetWeight(objInp->size());
 
     for (int i = 0; i < objInp->size(); i++) {
@@ -125,7 +125,7 @@ class AreaBasedOracle : public Oracle {
     return generateRandomSubsetBS((*objInpBS)[distribution(re)]);
   }
 
-  AreaBasedOracle(BasisCalculator *calc) : Oracle(calc) {
+  AreaBasedOracle(structs::Table *table) : Oracle(table) {
     std::vector<long double> attrSetWeight(objInp->size());
 
     for (int i = 0; i < objInp->size(); i++) {
@@ -149,7 +149,7 @@ class SquaredFrequencyOracle : public BaseOracle {
     return generateRandomSubsetBS(objIntersectionBS[distribution(re)]);
   }
 
-  SquaredFrequencyOracle(BasisCalculator *calc) : BaseOracle(calc) {
+  SquaredFrequencyOracle(structs::Table *table) : BaseOracle(table) {
     std::map<boost::dynamic_bitset<unsigned long>, long double>
         objIntersectionWeight;
     for (int i = 0; i < objInpBS->size(); i++) {
@@ -178,14 +178,14 @@ class SquaredFrequencyOracle : public BaseOracle {
 };
 
 std::shared_ptr<Oracle> createOracle(const std::string &type,
-                                     BasisCalculator *calc) {
+                                     structs::Table *table) {
   if (type == std::string("frequent")) {
-    return std::make_shared<FrequentAttributeOracle>(calc);
+    return std::make_shared<FrequentAttributeOracle>(table);
   } else if (type == std::string("area-based")) {
-    return std::make_shared<AreaBasedOracle>(calc);
+    return std::make_shared<AreaBasedOracle>(table);
   } else if (type == std::string("squared-frequency")) {
-    return std::make_shared<SquaredFrequencyOracle>(calc);
+    return std::make_shared<SquaredFrequencyOracle>(table);
   } else {
-    return std::make_shared<UniformOracle>(calc);
+    return std::make_shared<UniformOracle>(table);
   }
 }

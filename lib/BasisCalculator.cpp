@@ -98,7 +98,7 @@ void BasisCalculator::initFromArgs(int argc, char **argv) {
   statistic.del = atof(argv[3]);
   if (string(argv[4]) == string("strong")) statistic.epsilonStrong = true;
 
-  oracle = createOracle(string(argv[5]), this);
+  oracle = createOracle(string(argv[5]), &table);
 
   statistic.maxThreads = atoi(argv[6]);
   statistic.numThreads = 1;
