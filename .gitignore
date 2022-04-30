@@ -19,3 +19,4 @@ ResultsCalculator.cpp
 getResults
 hist.py
 .vscode/
+build/

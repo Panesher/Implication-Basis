@@ -27,11 +27,13 @@ const std::vector<std::string> columnNames = {
     "Empty_set_closure_computes",
 };
 
-} // namespace
+}  // namespace
 
 void printUsageAndExit() {
-  std::cout << "Usage: ./algo <contextFileFullPath> <epsilon> <delta> <strong/weak> "
-          "<uniform/frequent/both> <numThreads> <support/none>\n";
+  std::cout << "Usage: ./algo.out <path/to/context.txt> <Epsilon> <Delta> "
+               "<strong/weak> "
+               "<uniform/frequent/area-based/squared-frequency> <number of "
+               "threads> none <csv/csv-with-header/readable>\n";
   exit(0);
 }
 
@@ -96,4 +98,4 @@ boost::dynamic_bitset<unsigned long> attrVectorToAttrBS(
   return ans;
 }
 
-} // namespace utils
+}  // namespace utils
