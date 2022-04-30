@@ -73,6 +73,9 @@ std::discrete_distribution<int> discreteDistribution;
 std::discrete_distribution<int> areaBasedDistribution;
 boost::dynamic_bitset<unsigned long>(*distributionFunction)();
 
+vector<boost::dynamic_bitset<unsigned long>> objIntersectionBS;
+std::discrete_distribution<int> squaredFrequencyDistribution;
+
 std::default_random_engine re(rd());
 
 vector<implicationBS> ansBasisBS;
@@ -147,6 +150,36 @@ void initializeRandSetGen()
 	}
 
 	discreteDistribution = std::discrete_distribution<int>(attrSetWeight.begin(), attrSetWeight.end());
+}
+
+void initializeSquaredFrequencyDistribution()
+{
+  if (objIntersectionBS.size()) {
+    return;
+  }
+  map<boost::dynamic_bitset<unsigned long>, long double> objIntersectionWeight;
+	for (int i = 0; i < objInp.size(); i++)
+	{
+    for (int j = i + 1; j < objInp.size(); j++)
+    {
+      auto intersectionBS = objInpBS[i] & objInpBS[j];
+      auto weight = (long double)pow((long double)2, (long double)intersectionBS.count());
+      if (auto it = objIntersectionWeight.find(intersectionBS); it != objIntersectionWeight.end()) {
+        it->second += weight;
+      } else {
+        objIntersectionBS.push_back(intersectionBS);
+        objIntersectionWeight[intersectionBS] = weight;
+      }
+    }
+	}
+
+  vector<long double> intersectionWeights;
+  for (const auto &intersectionBS : objIntersectionBS)
+  {
+    intersectionWeights.push_back(objIntersectionWeight[intersectionBS]);
+  }
+
+	squaredFrequencyDistribution = std::discrete_distribution<int>(intersectionWeights.begin(), intersectionWeights.end());
 }
 
 void initializeAreaBasedDistribution()
@@ -339,7 +372,7 @@ inline int rand(int upperBound)
   return rand() % (upperBound + 1);
 }
 
-boost::dynamic_bitset<unsigned long> ReservoirSample(const boost::dynamic_bitset<unsigned long> &set, const size_t subsetSize)
+boost::dynamic_bitset<unsigned long> ReservoirSampleBS(const boost::dynamic_bitset<unsigned long> &set, const size_t subsetSize)
 {
   int i = 0;
   vector<int> resultMap(subsetSize);
@@ -376,15 +409,20 @@ size_t getRandomSubsetSize(const size_t size)
   return discrete_distribution<int>(w.begin(), w.end())(re);
 }
 
-boost::dynamic_bitset<unsigned long> getPowerBasedSubset(const boost::dynamic_bitset<unsigned long> &set)
+boost::dynamic_bitset<unsigned long> getPowerBasedSubsetBS(const boost::dynamic_bitset<unsigned long> &set)
 {
   size_t subsetSize = getRandomSubsetSize(set.count());
-  return ReservoirSample(set, subsetSize);
+  return ReservoirSampleBS(set, subsetSize);
 }
 
 boost::dynamic_bitset<unsigned long> getAreaBasedSetBS()
 {
-	return getPowerBasedSubset(objInpBS[areaBasedDistribution(re)]);
+	return getPowerBasedSubsetBS(objInpBS[areaBasedDistribution(re)]);
+}
+
+boost::dynamic_bitset<unsigned long> getSquaredFrequencySetBS()
+{
+	return getRandomSubsetBS(objIntersectionBS[squaredFrequencyDistribution(re)]);
 }
 
 boost::dynamic_bitset<unsigned long> getFrequentAttrSetBS()
@@ -985,10 +1023,15 @@ void initArgs(int argc, char **argv)
 	del = atof(argv[3]);
 	if (string(argv[4]) == string("strong"))
 		epsilonStrong = true;
-	if (argv[5] == "frequent") {
+	if (argv[5] == string("frequent")) {
+	  initializeRandSetGen();
     distributionFunction = &getFrequentAttrSetBS;
-  } else if (argv[5] == "area-based") {
+  } else if (argv[5] == string("area-based")) {
+    initializeAreaBasedDistribution();
     distributionFunction = &getAreaBasedSetBS;
+  } else if (argv[5] == string("squared-frequency")) {
+    initializeSquaredFrequencyDistribution();
+    distributionFunction = &getSquaredFrequencySetBS;
   } else {
     distributionFunction = &getRandomAttrSetBS;
   }
@@ -1007,7 +1050,6 @@ int main(int argc, char **argv)
 	
 	ThreadPool threadPool(maxThreads - 1);
 	fillPotentialCounterExamples();
-	initializeRandSetGen();
 	vector<implication> ans = generateImplicationBasis(threadPool);
 
 	auto endTime = chrono::high_resolution_clock::now();
