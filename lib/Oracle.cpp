@@ -2,7 +2,7 @@
 
 #include <map>
 
-#include "BasisCalculator.h"
+#include "Utils.h"
 
 namespace {
 
@@ -10,14 +10,21 @@ inline int randBound(int upperBound) { return rand() % (upperBound + 1); }
 
 }  // namespace
 
-Oracle::Oracle(structs::Table *table)
-    : rd(),
-      re(rd()),
-      objInpBS(&table->objInpBS),
-      objInp(&table->objInp),
-      attrInp(&table->attrInp) {}
-
 class BaseOracle : public Oracle {
+ protected:
+  std::random_device rd;
+  std::default_random_engine re;
+  structs::Table *table;
+
+  std::discrete_distribution<int> distribution;
+  virtual boost::dynamic_bitset<unsigned long> generateRandomSubsetBS(
+      boost::dynamic_bitset<unsigned long> &set) = 0;
+
+ public:
+  BaseOracle(structs::Table *table) : rd(), re(rd()), table(table) {}
+};
+
+class UniformSubsetOracle : public BaseOracle {
  protected:
   boost::dynamic_bitset<unsigned long> generateRandomSubsetBS(
       boost::dynamic_bitset<unsigned long> &set) override {
@@ -42,42 +49,11 @@ class BaseOracle : public Oracle {
   }
 
  public:
-  BaseOracle(structs::Table *table) : Oracle(table) {}
+  UniformSubsetOracle(structs::Table *table) : BaseOracle(table) {}
 };
 
-class UniformOracle : public BaseOracle {
- public:
-  boost::dynamic_bitset<unsigned long> generate() override {
-    boost::dynamic_bitset<unsigned long> ans(attrInp->size());
-    ans.set();
-    ans[0] = false;
-    return generateRandomSubsetBS(ans);
-  }
-
-  UniformOracle(structs::Table *table) : BaseOracle(table) {}
-};
-
-class FrequentAttributeOracle : public BaseOracle {
- public:
-  boost::dynamic_bitset<unsigned long> generate() override {
-    return generateRandomSubsetBS((*objInpBS)[distribution(re)]);
-  }
-
-  FrequentAttributeOracle(structs::Table *table) : BaseOracle(table) {
-    std::vector<long double> attrSetWeight(objInp->size());
-
-    for (int i = 0; i < objInp->size(); i++) {
-      attrSetWeight[i] =
-          (long double)pow((long double)2, (long double)(*objInp)[i].size());
-    }
-
-    distribution = std::discrete_distribution<int>(attrSetWeight.begin(),
-                                                   attrSetWeight.end());
-  }
-};
-
-class AreaBasedOracle : public Oracle {
- private:
+class PowerBasedSubsetOracle : public BaseOracle {
+ protected:
   boost::dynamic_bitset<unsigned long> reservoirSampleBS(
       const boost::dynamic_bitset<unsigned long> &set,
       const size_t subsetSize) {
@@ -97,12 +73,7 @@ class AreaBasedOracle : public Oracle {
       }
     }
 
-    boost::dynamic_bitset<unsigned long> resultBitset(set.size());
-    for (const auto &setI : resultMap) {
-      resultBitset.set(setI);
-    }
-
-    return resultBitset;
+    return utils::attrVectorToAttrBS(resultMap, set.size());
   }
 
   size_t getRandomSubsetSize(const size_t size) {
@@ -121,18 +92,33 @@ class AreaBasedOracle : public Oracle {
   }
 
  public:
+  PowerBasedSubsetOracle(structs::Table *table) : BaseOracle(table) {}
+};
+
+class UniformOracle : public UniformSubsetOracle {
+ public:
   boost::dynamic_bitset<unsigned long> generate() override {
-    return generateRandomSubsetBS((*objInpBS)[distribution(re)]);
+    boost::dynamic_bitset<unsigned long> ans(table->attrInp.size());
+    ans.set();
+    ans[0] = false;
+    return generateRandomSubsetBS(ans);
   }
 
-  AreaBasedOracle(structs::Table *table) : Oracle(table) {
-    std::vector<long double> attrSetWeight(objInp->size());
+  UniformOracle(structs::Table *table) : UniformSubsetOracle(table) {}
+};
 
-    for (int i = 0; i < objInp->size(); i++) {
-      attrSetWeight[i] =
-          (long double)pow((long double)2,
-                           (long double)(*objInp)[i].size() - 1) *
-          (*objInp)[i].size();
+class FrequentAttributeOracle : public UniformSubsetOracle {
+ public:
+  boost::dynamic_bitset<unsigned long> generate() override {
+    return generateRandomSubsetBS(table->objInpBS[distribution(re)]);
+  }
+
+  FrequentAttributeOracle(structs::Table *table) : UniformSubsetOracle(table) {
+    std::vector<long double> attrSetWeight(table->objInp.size());
+
+    for (int i = 0; i < table->objInp.size(); i++) {
+      attrSetWeight[i] = (long double)pow((long double)2,
+                                          (long double)table->objInp[i].size());
     }
 
     distribution = std::discrete_distribution<int>(attrSetWeight.begin(),
@@ -140,7 +126,28 @@ class AreaBasedOracle : public Oracle {
   }
 };
 
-class SquaredFrequencyOracle : public BaseOracle {
+class AreaBasedOracle : public PowerBasedSubsetOracle {
+ public:
+  boost::dynamic_bitset<unsigned long> generate() override {
+    return generateRandomSubsetBS(table->objInpBS[distribution(re)]);
+  }
+
+  AreaBasedOracle(structs::Table *table) : PowerBasedSubsetOracle(table) {
+    std::vector<long double> attrSetWeight(table->objInp.size());
+
+    for (int i = 0; i < table->objInp.size(); i++) {
+      attrSetWeight[i] =
+          (long double)pow((long double)2,
+                           (long double)table->objInp[i].size() - 1) *
+          table->objInp[i].size();
+    }
+
+    distribution = std::discrete_distribution<int>(attrSetWeight.begin(),
+                                                   attrSetWeight.end());
+  }
+};
+
+class SquaredFrequencyOracle : public UniformSubsetOracle {
  private:
   std::vector<boost::dynamic_bitset<unsigned long>> objIntersectionBS;
 
@@ -149,12 +156,12 @@ class SquaredFrequencyOracle : public BaseOracle {
     return generateRandomSubsetBS(objIntersectionBS[distribution(re)]);
   }
 
-  SquaredFrequencyOracle(structs::Table *table) : BaseOracle(table) {
+  SquaredFrequencyOracle(structs::Table *table) : UniformSubsetOracle(table) {
     std::map<boost::dynamic_bitset<unsigned long>, long double>
         objIntersectionWeight;
-    for (int i = 0; i < objInpBS->size(); i++) {
-      for (int j = i + 1; j < objInpBS->size(); j++) {
-        auto intersectionBS = (*objInpBS)[i] & (*objInpBS)[j];
+    for (int i = 0; i < table->objInpBS.size(); i++) {
+      for (int j = i + 1; j < table->objInpBS.size(); j++) {
+        auto intersectionBS = table->objInpBS[i] & table->objInpBS[j];
         auto weight = (long double)pow((long double)2,
                                        (long double)intersectionBS.count());
         if (auto it = objIntersectionWeight.find(intersectionBS);

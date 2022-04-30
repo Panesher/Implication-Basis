@@ -62,7 +62,8 @@ void BasisCalculator::initializeObjInpBS() {
   table.objInpBS.resize(table.objInp.size());
 
   for (int i = 0; i < table.objInp.size(); i++) {
-    table.objInpBS[i] = utils::attrVectorToAttrBS(table.objInp[i], table.attrInp.size());
+    table.objInpBS[i] =
+        utils::attrVectorToAttrBS(table.objInp[i], table.attrInp.size());
   }
 }
 
@@ -70,7 +71,8 @@ void BasisCalculator::initFrequencyOrderedAttributes() {
   vector<int> freqAttr(table.attrInp.size(), 0);
 
   for (int i = 0; i < table.objInp.size(); i++) {
-    for (int j = 0; j < table.objInp[i].size(); j++) freqAttr[table.objInp[i][j]]++;
+    for (int j = 0; j < table.objInp[i].size(); j++)
+      freqAttr[table.objInp[i][j]]++;
   }
 
   vector<pair<int, int>> freqPairs;
@@ -115,7 +117,9 @@ void BasisCalculator::initFromArgs(int argc, char **argv) {
 }
 
 void BasisCalculator::getLoopCount() {
-  double loopCount = log(statistic.del / ((double)(statistic.gCounter * (statistic.gCounter + 1))));
+  double loopCount =
+      log(statistic.del /
+          ((double)(statistic.gCounter * (statistic.gCounter + 1))));
   loopCount = loopCount / log(1 - statistic.epsilon);
   statistic.maxTries = (int)ceil(loopCount);
 }
@@ -228,8 +232,8 @@ void BasisCalculator::tryPotentialCounterExamples(
 }
 
 void BasisCalculator::setNumThreads() {
-  double temp =
-      (statistic.prevThreads * timeStatistic.prevIter) / timeStatistic.threadOverhead;
+  double temp = (statistic.prevThreads * timeStatistic.prevIter) /
+                timeStatistic.threadOverhead;
   temp -= (statistic.prevThreads * statistic.prevThreads);
 
   if (temp < 0) {
@@ -249,7 +253,9 @@ void BasisCalculator::getCounterExample(vector<implicationBS> &basis, int s) {
   boost::dynamic_bitset<unsigned long> X;
 
   for (int i = s; i < statistic.maxTries && statistic.globalFlag;
-       i += statistic.numThreads) {  // Each thread handles an equal number of iterations.
+       i +=
+       statistic
+           .numThreads) {  // Each thread handles an equal number of iterations.
     threadTries++;
 
     X = oracle->generate();
@@ -275,8 +281,8 @@ void BasisCalculator::getCounterExample(vector<implicationBS> &basis, int s) {
         lck.lock();
 
         // statistic.globalFlag is false until a counterexample has been found
-        //  if(statistic.globalFlag) // If this line is not commented then quality
-        //  increases with threads
+        //  if(statistic.globalFlag) // If this line is not commented then
+        //  quality increases with threads
         {
           statistic.globalFlag = false;
           counterExampleBS = cL;
@@ -292,8 +298,8 @@ void BasisCalculator::getCounterExample(vector<implicationBS> &basis, int s) {
         lck.lock();
 
         // statistic.globalFlag is false until a counterexample has been found
-        //  if(statistic.globalFlag) // If this line is not commented then quality
-        //  increases with threads
+        //  if(statistic.globalFlag) // If this line is not commented then
+        //  quality increases with threads
         {
           statistic.globalFlag = false;
           counterExampleBS = X;
@@ -333,7 +339,8 @@ void BasisCalculator::fillPotentialCounterExamples() {
   // Singleton
   for (int i = 1; i < table.attrInp.size(); i++) {
     vector<int> cVec = {i};
-    potentialCounterExamplesBS.push_back(utils::attrVectorToAttrBS(cVec, table.attrInp.size()));
+    potentialCounterExamplesBS.push_back(
+        utils::attrVectorToAttrBS(cVec, table.attrInp.size()));
   }
 }
 
@@ -509,9 +516,12 @@ void BasisCalculator::tryToUpdateImplicationBasis(
   double threadContextClosureTime = 0;
   lck.lock();
 
-  while ((statistic.implicationsSeen < basis.size()) && (!statistic.basisUpdate)) {
-    boost::dynamic_bitset<unsigned long> A = basis[statistic.implicationsSeen].lhs;
-    boost::dynamic_bitset<unsigned long> B = basis[statistic.implicationsSeen].rhs;
+  while ((statistic.implicationsSeen < basis.size()) &&
+         (!statistic.basisUpdate)) {
+    boost::dynamic_bitset<unsigned long> A =
+        basis[statistic.implicationsSeen].lhs;
+    boost::dynamic_bitset<unsigned long> B =
+        basis[statistic.implicationsSeen].rhs;
     int curIndex = statistic.implicationsSeen;
     statistic.implicationsSeen++;
     lck.unlock();
@@ -541,7 +551,8 @@ void BasisCalculator::tryToUpdateImplicationBasis(
         updatedImplication.rhs = cC;
       }
 
-      else if (statistic.basisUpdate && (curIndex < statistic.indexOfUpdatedImplication)) {
+      else if (statistic.basisUpdate &&
+               (curIndex < statistic.indexOfUpdatedImplication)) {
         statistic.indexOfUpdatedImplication = curIndex;
         updatedImplication.lhs = C;
         updatedImplication.rhs = cC;
@@ -674,16 +685,17 @@ vector<string> BasisCalculator::getPrintResults(double totalExecTime) {
   for (int i = 1; i < 7; i++) {
     printingResults.push_back(argv[i]);
   }
-  vector<string> results({to_string(TIMEPRINT(totalExecTime)),
-                          to_string(TIMEPRINT(timeStatistic.total)),
-                          to_string(TIMEPRINT(timeStatistic.totalExec2)),
-                          to_string(TIMEPRINT(timeStatistic.totalClosure)),
-                          to_string(TIMEPRINT(timeStatistic.updown)),
-                          to_string(statistic.totClosureComputations),
-                          to_string(statistic.totUpDownComputes), to_string(basis.size()),
-                          to_string(statistic.totCounterExamples), to_string(statistic.sumTotTries),
-                          to_string(statistic.aEqualToCCount),
-                          to_string(statistic.emptySetClosureComputes)});
+  vector<string> results(
+      {to_string(TIMEPRINT(totalExecTime)),
+       to_string(TIMEPRINT(timeStatistic.total)),
+       to_string(TIMEPRINT(timeStatistic.totalExec2)),
+       to_string(TIMEPRINT(timeStatistic.totalClosure)),
+       to_string(TIMEPRINT(timeStatistic.updown)),
+       to_string(statistic.totClosureComputations),
+       to_string(statistic.totUpDownComputes), to_string(basis.size()),
+       to_string(statistic.totCounterExamples),
+       to_string(statistic.sumTotTries), to_string(statistic.aEqualToCCount),
+       to_string(statistic.emptySetClosureComputes)});
   printingResults.insert(printingResults.end(), results.begin(), results.end());
   return printingResults;
 }

@@ -53,16 +53,14 @@ struct Statistic {
   long long aEqualToCCount = 0;
 };
 
-typedef struct s
-{
-	std::vector<int> lhs;
-	std::vector<int> rhs;
+typedef struct s {
+  std::vector<int> lhs;
+  std::vector<int> rhs;
 } implication;
 
-typedef struct
-{
-	boost::dynamic_bitset<unsigned long> lhs;
-	boost::dynamic_bitset<unsigned long> rhs;
+typedef struct {
+  boost::dynamic_bitset<unsigned long> lhs;
+  boost::dynamic_bitset<unsigned long> rhs;
 } implicationBS;
 
 enum PrintFormat {
@@ -70,6 +68,6 @@ enum PrintFormat {
   kCSV,
 };
 
-} // structs
+}  // namespace structs
 
-#endif // __STRUCTS_H__
+#endif  // __STRUCTS_H__

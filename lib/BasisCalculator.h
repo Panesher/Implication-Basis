@@ -5,15 +5,14 @@
 #include <mutex>
 #include <random>
 
+#include "Oracle.h"
 #include "Structs.h"
 #include "ThreadPool.h"
-#include "Oracle.h"
 
 #define TIMEPRINT(X) (((double)X) / ((double)1000000))
 
 class BasisCalculator {
  private:
-  friend class Oracle;
   structs::TimeStatistic timeStatistic;
   structs::Statistic statistic;
   structs::Table table;
@@ -42,11 +41,13 @@ class BasisCalculator {
   boost::dynamic_bitset<unsigned long> contextClosureBS(
       boost::dynamic_bitset<unsigned long> &aset);
   boost::dynamic_bitset<unsigned long> closureBS(
-      std::vector<structs::implicationBS> &basis, boost::dynamic_bitset<unsigned long> X);
+      std::vector<structs::implicationBS> &basis,
+      boost::dynamic_bitset<unsigned long> X);
   void tryPotentialCounterExamples(std::vector<structs::implicationBS> &basis);
   bool isSetEqualToImpCLosure(std::vector<structs::implicationBS> &basis,
                               boost::dynamic_bitset<unsigned long> &X);
-  std::vector<structs::implication> BSBasisToVectorBasis(std::vector<structs::implicationBS> ansBS);
+  std::vector<structs::implication> BSBasisToVectorBasis(
+      std::vector<structs::implicationBS> ansBS);
   bool isLectGreater(boost::dynamic_bitset<unsigned long> &closedSet,
                      int lectInd);
   boost::dynamic_bitset<unsigned long> nextContextClosure(
@@ -61,9 +62,10 @@ class BasisCalculator {
 
   // Static views for binding thread
   static void getCounterExampleView(BasisCalculator *calc,
-                                    std::vector<structs::implicationBS> &basis, int s);
-  static void tryToUpdateImplicationBasisView(BasisCalculator *calc,
-                                              std::vector<structs::implicationBS> &basis);
+                                    std::vector<structs::implicationBS> &basis,
+                                    int s);
+  static void tryToUpdateImplicationBasisView(
+      BasisCalculator *calc, std::vector<structs::implicationBS> &basis);
 
  public:
   BasisCalculator(int argc, char **argv);
