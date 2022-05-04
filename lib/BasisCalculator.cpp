@@ -89,6 +89,11 @@ void BasisCalculator::initFrequencyOrderedAttributes() {
 }
 
 void BasisCalculator::initFromArgs(int argc, char **argv) {
+  if (argc == 2 && argv[1] == string("header")) {
+    utils::printCSVHeader();
+    exit(0);
+  }
+
   if (argc < 8) {
     utils::printUsageAndExit();
   }
