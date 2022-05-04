@@ -36,21 +36,6 @@ def run_once(run_config):
     ], stdout=subprocess.PIPE).stdout.decode('utf-8')
 
 
-def run_basis(config):
-    ds_list = os.listdir(config['DS-dir'])
-    results = []
-    config['format'] = 'csv'
-    approximations = ['weak', 'strong']
-    distributions = ['uniform', 'frequent', 'area-based', 'squared-frequency']
-    for ds, approximation, distribution in product(ds_list, approximations, distributions):
-        config['ds'] = os.path.join(config['DS-dir'], ds)
-        config['approximation'] = approximation
-        config['distribution'] = distribution
-        results += [run_once(config)]
-
-    return results
-
-
 def put_header_to_file(file, header):
     f = open(file, 'w')
     f.write(header)
@@ -74,17 +59,22 @@ def check_file_correct(config):
         put_header_to_file(config['output'], header)
 
 
+def run_basis(config):
+    ds_list = os.listdir(config['DS-dir'])
+    config['format'] = 'csv'
+    approximations = ['weak', 'strong']
+    distributions = ['uniform', 'frequent', 'area-based', 'squared-frequency']
 
-def print_results(config, results):
-    check_file_correct(config)
-
-    f = open(config['output'], 'a')
-    for res in results:
-        f.write(res)
-    f.close()
+    for ds, approximation, distribution in product(ds_list, approximations, distributions):
+        config['ds'] = os.path.join(config['DS-dir'], ds)
+        config['approximation'] = approximation
+        config['distribution'] = distribution
+        f = open(config['output'], 'a')
+        f.write(run_once(config))
+        f.close()
 
 
 if __name__ == '__main__':
     config = read_args(argv)
+    check_file_correct(config)
     results = run_basis(config)
-    print_results(config, results)
