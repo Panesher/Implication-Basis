@@ -159,6 +159,7 @@ class SquaredFrequencyOracle : public UniformSubsetOracle {
   SquaredFrequencyOracle(structs::Table *table) : UniformSubsetOracle(table) {
     std::map<boost::dynamic_bitset<unsigned long>, long double>
         objIntersectionWeight;
+    // TODO: D1, D1
     for (int i = 0; i < table->objInpBS.size(); i++) {
       for (int j = i + 1; j < table->objInpBS.size(); j++) {
         auto intersectionBS = table->objInpBS[i] & table->objInpBS[j];

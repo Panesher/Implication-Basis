@@ -25,6 +25,11 @@ const std::vector<std::string> columnNames = {
     "Sum_total_tries",
     "Equal_to_count",
     "Empty_set_closure_computes",
+    "Support_avg",
+    "Support_p10",
+    "Support_p50",
+    "Support_p90",
+    "Support_p95",
 };
 
 }  // namespace

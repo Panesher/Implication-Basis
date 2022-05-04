@@ -66,6 +66,7 @@ class BasisCalculator {
                                     int s);
   static void tryToUpdateImplicationBasisView(
       BasisCalculator *calc, std::vector<structs::implicationBS> &basis);
+  std::vector<std::string> getSupportOfImplications();
 
  public:
   BasisCalculator(int argc, char **argv);

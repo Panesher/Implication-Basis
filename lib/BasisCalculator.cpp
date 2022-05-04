@@ -702,5 +702,30 @@ vector<string> BasisCalculator::getPrintResults(double totalExecTime) {
        to_string(statistic.sumTotTries), to_string(statistic.aEqualToCCount),
        to_string(statistic.emptySetClosureComputes)});
   printingResults.insert(printingResults.end(), results.begin(), results.end());
+  auto supportResult = getSupportOfImplications();
+  printingResults.insert(printingResults.end(), supportResult.begin(), supportResult.end());
   return printingResults;
+}
+
+vector<string> BasisCalculator::getSupportOfImplications() {
+  vector<int> supports;
+  for (int i = 0; i < basisBS.size(); i++) {
+    int support = 0;
+    for (int j = 0; j < table.objInpBS.size(); j++) {
+      if (basisBS[i].lhs.is_subset_of(table.objInpBS[j])) support++;
+    }
+    supports.push_back(support);
+  }
+
+  sort(supports.rbegin(), supports.rend());
+  double meanSupport = accumulate(supports.begin(), supports.end(), 0);
+  meanSupport /= supports.size();
+
+  return {
+    to_string(100. * meanSupport / table.objInpBS.size()),
+    to_string(100. * supports[0.1 * supports.size()] / table.objInpBS.size()),
+    to_string(100. * supports[0.5 * supports.size()] / table.objInpBS.size()),
+    to_string(100. * supports[0.9 * supports.size()] / table.objInpBS.size()),
+    to_string(100. * supports[0.95 * supports.size()] / table.objInpBS.size()),
+  };
 }
