@@ -15,6 +15,7 @@ class Oracle {
 };
 
 std::shared_ptr<Oracle> createOracle(const std::string &type,
-                                     structs::Table *calc);
+                                     structs::Table *table,
+                                     const size_t thread_count = 1);
 
 #endif  // __ORACLE_H__

@@ -1,8 +1,12 @@
 #include "Oracle.h"
 
+#include <algorithm>
+#include <future>
 #include <map>
+#include <mutex>
 
 #include "Utils.h"
+#include "Log.h"
 
 namespace {
 
@@ -17,8 +21,6 @@ class BaseOracle : public Oracle {
   structs::Table *table;
 
   std::discrete_distribution<int> distribution;
-  virtual boost::dynamic_bitset<unsigned long> generateRandomSubsetBS(
-      boost::dynamic_bitset<unsigned long> &set) = 0;
 
  public:
   BaseOracle(structs::Table *table) : rd(), re(rd()), table(table) {}
@@ -27,7 +29,7 @@ class BaseOracle : public Oracle {
 class UniformSubsetOracle : public BaseOracle {
  protected:
   boost::dynamic_bitset<unsigned long> generateRandomSubsetBS(
-      boost::dynamic_bitset<unsigned long> &set) override {
+      boost::dynamic_bitset<unsigned long> &set) {
     int numElems = set.size(), processedElems = 0;
     boost::dynamic_bitset<unsigned long> ansSet(numElems);
 
@@ -54,28 +56,6 @@ class UniformSubsetOracle : public BaseOracle {
 
 class PowerBasedSubsetOracle : public BaseOracle {
  protected:
-  boost::dynamic_bitset<unsigned long> reservoirSampleBS(
-      const boost::dynamic_bitset<unsigned long> &set,
-      const size_t subsetSize) {
-    int i = 0;
-    std::vector<int> resultMap(subsetSize);
-    for (size_t setI = 0; setI < set.size(); setI++) {
-      if (set.test(setI)) {
-        if (i < subsetSize) {
-          resultMap[i] = setI;
-        } else {
-          int j = randBound(i);
-          if (j < subsetSize) {
-            resultMap[j] = setI;
-          }
-        }
-        ++i;
-      }
-    }
-
-    return utils::attrVectorToAttrBS(resultMap, set.size());
-  }
-
   size_t getRandomSubsetSize(const size_t size) {
     std::vector<long double> w(size + 1);
     w[1] = size;
@@ -87,8 +67,11 @@ class PowerBasedSubsetOracle : public BaseOracle {
   }
 
   boost::dynamic_bitset<unsigned long> generateRandomSubsetBS(
-      boost::dynamic_bitset<unsigned long> &set) override {
-    return reservoirSampleBS(set, getRandomSubsetSize(set.count()));
+      std::vector<int> &set) {
+    size_t sampleSize = getRandomSubsetSize(set.size());
+    std::vector<int> result(sampleSize);
+    std::sample(set.begin(), set.end(), result.begin(), sampleSize, re);
+    return utils::attrVectorToAttrBS(result, table->objInpBS.front().size());
   }
 
  public:
@@ -129,7 +112,7 @@ class FrequentAttributeOracle : public UniformSubsetOracle {
 class AreaBasedOracle : public PowerBasedSubsetOracle {
  public:
   boost::dynamic_bitset<unsigned long> generate() override {
-    return generateRandomSubsetBS(table->objInpBS[distribution(re)]);
+    return generateRandomSubsetBS(table->objInp[distribution(re)]);
   }
 
   AreaBasedOracle(structs::Table *table) : PowerBasedSubsetOracle(table) {
@@ -150,27 +133,56 @@ class AreaBasedOracle : public PowerBasedSubsetOracle {
 class SquaredFrequencyOracle : public UniformSubsetOracle {
  private:
   std::vector<boost::dynamic_bitset<unsigned long>> objIntersectionBS;
+  typedef std::map<boost::dynamic_bitset<unsigned long>, long double>
+      mapIntersectionType;
+
+  mapIntersectionType loadIntersectionShard(const size_t start,
+                                            const size_t increment) {
+    mapIntersectionType objIntersectionWeight;
+    for (int i = start; i < table->objInpBS.size(); i += increment) {
+      for (int j = i; j < table->objInpBS.size(); j++) {
+        auto intersectionBS = table->objInpBS[i] & table->objInpBS[j];
+        auto weight = (long double)pow((long double)2,
+                                       (long double)intersectionBS.count());
+        if (i != j) {
+          weight *= 2;
+        }
+        if (auto it = objIntersectionWeight.find(intersectionBS);
+            it != objIntersectionWeight.end()) {
+          it->second += weight;
+        } else {
+          objIntersectionWeight[intersectionBS] = weight;
+        }
+      }
+    }
+    return objIntersectionWeight;
+  }
 
  public:
   boost::dynamic_bitset<unsigned long> generate() override {
     return generateRandomSubsetBS(objIntersectionBS[distribution(re)]);
   }
 
-  SquaredFrequencyOracle(structs::Table *table) : UniformSubsetOracle(table) {
-    std::map<boost::dynamic_bitset<unsigned long>, long double>
-        objIntersectionWeight;
-    // TODO: D1, D1
-    for (int i = 0; i < table->objInpBS.size(); i++) {
-      for (int j = i + 1; j < table->objInpBS.size(); j++) {
-        auto intersectionBS = table->objInpBS[i] & table->objInpBS[j];
-        auto weight = (long double)pow((long double)2,
-                                       (long double)intersectionBS.count());
-        if (auto it = objIntersectionWeight.find(intersectionBS);
+  SquaredFrequencyOracle(structs::Table *table, size_t threadCount)
+      : UniformSubsetOracle(table) {
+    assert(threadCount != 0);
+    mapIntersectionType objIntersectionWeight;
+    std::vector<std::future<mapIntersectionType>> objIntersectionWeightFutures;
+    for (size_t threadNumber = 1; threadNumber < threadCount; ++threadNumber) {
+      objIntersectionWeightFutures.push_back(
+          std::async(&SquaredFrequencyOracle::loadIntersectionShard, this, 0,
+                     threadCount));
+    }
+    loadIntersectionShard(0, threadCount);
+    for (auto &resultFuture : objIntersectionWeightFutures) {
+      auto result = resultFuture.get();
+      for (const auto &one_result : result) {
+        if (auto it = objIntersectionWeight.find(one_result.first);
             it != objIntersectionWeight.end()) {
-          it->second += weight;
+          it->second += one_result.second;
         } else {
-          objIntersectionBS.push_back(intersectionBS);
-          objIntersectionWeight[intersectionBS] = weight;
+          objIntersectionBS.push_back(one_result.first);
+          objIntersectionWeight[one_result.first] = one_result.second;
         }
       }
     }
@@ -186,13 +198,14 @@ class SquaredFrequencyOracle : public UniformSubsetOracle {
 };
 
 std::shared_ptr<Oracle> createOracle(const std::string &type,
-                                     structs::Table *table) {
+                                     structs::Table *table,
+                                     const size_t thread_count) {
   if (type == std::string("frequent")) {
     return std::make_shared<FrequentAttributeOracle>(table);
   } else if (type == std::string("area-based")) {
     return std::make_shared<AreaBasedOracle>(table);
   } else if (type == std::string("squared-frequency")) {
-    return std::make_shared<SquaredFrequencyOracle>(table);
+    return std::make_shared<SquaredFrequencyOracle>(table, thread_count);
   } else {
     return std::make_shared<UniformOracle>(table);
   }

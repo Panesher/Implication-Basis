@@ -103,11 +103,11 @@ void BasisCalculator::initFromArgs(int argc, char **argv) {
   initFrequencyOrderedAttributes();
   statistic.epsilon = atof(argv[2]);
   statistic.del = atof(argv[3]);
+  statistic.maxThreads = atoi(argv[6]);
   if (string(argv[4]) == string("strong")) statistic.epsilonStrong = true;
 
-  oracle = createOracle(string(argv[5]), &table);
+  oracle = createOracle(string(argv[5]), &table, statistic.maxThreads);
 
-  statistic.maxThreads = atoi(argv[6]);
   statistic.numThreads = 1;
   if (string(argv[7]) == string("support")) {
     statistic.implicationSupport = true;
