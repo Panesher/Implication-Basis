@@ -12,10 +12,9 @@ set(CMAKE_CXX_FLAGS_ASAN "-g -fsanitize=address,undefined -fno-sanitize-recover=
     FORCE
 )
 
-add_subdirectory(lib)
-link_directories(lib)
-include_directories(lib)
+find_package(Threads REQUIRED)
+file(GLOB_RECURSE SOURCES RELATIVE ${CMAKE_SOURCE_DIR} "lib/*.cpp")
 
-add_executable(algo.out main.cpp)
+add_executable(algo.out main.cpp ${SOURCES})
 
-target_link_libraries(algo.out BasisCalculator)
+target_link_libraries(algo.out Threads::Threads)

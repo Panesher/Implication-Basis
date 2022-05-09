@@ -20,3 +20,4 @@ getResults
 hist.py
 .vscode/
 build/
+*.csv
