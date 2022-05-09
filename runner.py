@@ -64,14 +64,19 @@ def run_basis(config):
     config['format'] = 'csv'
     approximations = ['weak', 'strong']
     distributions = ['uniform', 'frequent', 'area-based', 'squared-frequency']
+    cnt_retries = 3
 
-    for ds, approximation, distribution in product(ds_list, approximations, distributions):
-        config['ds'] = os.path.join(config['DS-dir'], ds)
-        config['approximation'] = approximation
-        config['distribution'] = distribution
-        f = open(config['output'], 'a')
-        f.write(run_once(config))
-        f.close()
+    for _ in range(cnt_retries):
+        for ds, approximation, distribution in product(ds_list, approximations, distributions):
+            if 'census' in ds.lower():
+                continue
+
+            config['ds'] = os.path.join(config['DS-dir'], ds)
+            config['approximation'] = approximation
+            config['distribution'] = distribution
+            f = open(config['output'], 'a')
+            f.write(run_once(config))
+            f.close()
 
 
 if __name__ == '__main__':

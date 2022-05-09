@@ -53,15 +53,15 @@ struct Statistic {
   long long aEqualToCCount = 0;
 };
 
-typedef struct s {
+struct implication {
   std::vector<int> lhs;
   std::vector<int> rhs;
-} implication;
+};
 
-typedef struct {
+struct implicationBS {
   boost::dynamic_bitset<unsigned long> lhs;
   boost::dynamic_bitset<unsigned long> rhs;
-} implicationBS;
+};
 
 enum PrintFormat {
   kReadble,

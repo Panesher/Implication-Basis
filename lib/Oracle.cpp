@@ -6,13 +6,6 @@
 #include <mutex>
 
 #include "Utils.h"
-#include "Log.h"
-
-namespace {
-
-inline int randBound(int upperBound) { return rand() % (upperBound + 1); }
-
-}  // namespace
 
 class BaseOracle : public Oracle {
  protected:
