@@ -151,6 +151,38 @@ class SquaredFrequencyOracle : public UniformSubsetOracle {
     return objIntersectionWeight;
   }
 
+  mapIntersectionType mergeIntersections(
+      std::vector<std::future<mapIntersectionType>> &resultFuture,
+      const size_t start, const size_t end) {
+    if (end - start < 2) {
+      return resultFuture[start].get();
+    }
+    size_t mid = (start + end) / 2;
+    auto firstFuture =
+        std::async([&] { return mergeIntersections(resultFuture, start, mid); });
+    auto secondFuture =
+        std::async([&] { return mergeIntersections(resultFuture, mid, end); });
+    auto first = firstFuture.get();
+    auto second = secondFuture.get();
+    for (auto &elem : first) {
+      second[elem.first] += elem.second;
+    }
+    return second;
+  }
+
+  mapIntersectionType loadIntersection(size_t threadCount) {
+    assert(threadCount != 0);
+    std::vector<std::future<mapIntersectionType>> objIntersectionWeightFutures;
+
+    for (size_t threadNumber = 0; threadNumber < threadCount; ++threadNumber) {
+      objIntersectionWeightFutures.push_back(
+          std::async(&SquaredFrequencyOracle::loadIntersectionShard, this, 0,
+                     threadCount));
+    }
+
+    return mergeIntersections(objIntersectionWeightFutures, 0, objIntersectionWeightFutures.size());
+  }
+
  public:
   boost::dynamic_bitset<unsigned long> generate() override {
     return generateRandomSubsetBS(objIntersectionBS[distribution(re)]);
@@ -158,33 +190,12 @@ class SquaredFrequencyOracle : public UniformSubsetOracle {
 
   SquaredFrequencyOracle(structs::Table *table, size_t threadCount)
       : UniformSubsetOracle(table) {
-    assert(threadCount != 0);
-    mapIntersectionType objIntersectionWeight;
-    std::vector<std::future<mapIntersectionType>> objIntersectionWeightFutures;
-    for (size_t threadNumber = 1; threadNumber < threadCount; ++threadNumber) {
-      objIntersectionWeightFutures.push_back(
-          std::async(&SquaredFrequencyOracle::loadIntersectionShard, this, 0,
-                     threadCount));
-    }
-    loadIntersectionShard(0, threadCount);
-    for (auto &resultFuture : objIntersectionWeightFutures) {
-      auto result = resultFuture.get();
-      for (const auto &one_result : result) {
-        if (auto it = objIntersectionWeight.find(one_result.first);
-            it != objIntersectionWeight.end()) {
-          it->second += one_result.second;
-        } else {
-          objIntersectionBS.push_back(one_result.first);
-          objIntersectionWeight[one_result.first] = one_result.second;
-        }
-      }
-    }
-
+    mapIntersectionType objIntersectionWeight(loadIntersection(threadCount));
     std::vector<long double> intersectionWeights;
-    for (const auto &intersectionBS : objIntersectionBS) {
-      intersectionWeights.push_back(objIntersectionWeight[intersectionBS]);
+    for (auto &intersection : objIntersectionWeight) {
+      objIntersectionBS.push_back(intersection.first);
+      intersectionWeights.push_back(intersection.second);
     }
-
     distribution = std::discrete_distribution<int>(intersectionWeights.begin(),
                                                    intersectionWeights.end());
   }
