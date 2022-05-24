@@ -42,12 +42,10 @@ void printUsageAndExit() {
   exit(0);
 }
 
-void printVector(std::vector<int> &A) {
+void printVector(const std::vector<int> &A) {
   for (auto x : A) {
     std::cout << x << " ";
   }
-
-  std::cout << "\n";
 }
 
 void printReadbleResult(const std::vector<std::string> &printingResults) {
@@ -63,9 +61,9 @@ void printReadbleResult(const std::vector<std::string> &printingResults) {
 }
 
 void printResultAsCSV(const std::vector<std::string> &printingResults) {
-  for (const auto &printingResult : printingResults) {
-    std::cout << printingResult;
-    if (printingResult != printingResults.back()) {
+  for (size_t i = 0; i < printingResults.size(); ++i) {
+    std::cout << printingResults[i];
+    if (i != printingResults.size() - 1) {
       std::cout << ",";
     }
   }

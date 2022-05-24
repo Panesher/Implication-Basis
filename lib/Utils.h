@@ -8,7 +8,7 @@
 namespace utils {
 
 void printUsageAndExit();
-void printVector(std::vector<int> &A);
+void printVector(const std::vector<int> &A);
 void printReadbleResult(const std::vector<std::string> &printingResults);
 void printResultAsCSV(const std::vector<std::string> &printingResults);
 void printCSVHeader();

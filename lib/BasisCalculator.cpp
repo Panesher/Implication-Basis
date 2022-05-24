@@ -5,6 +5,7 @@
 #include <random>
 #include <sstream>
 
+#include "Log.h"
 #include "Utils.h"
 
 using namespace std;
@@ -35,8 +36,9 @@ void BasisCalculator::readFormalContext1(const string &fileName) {
     }
     if (cur.size() != 0) table.objInp.push_back(cur);
   }
-
   inFile.close();
+  assert(table.attrInp.size() && table.objInp.size() && "Table is empty");
+  LOG(DEBUG) << "Context has readed from " << fileName;
 }
 
 void BasisCalculator::readFormalContext2(const string &fileName) {
@@ -257,10 +259,9 @@ void BasisCalculator::getCounterExample(vector<implicationBS> &basis, int s) {
   int threadTries = 0;
   boost::dynamic_bitset<unsigned long> X;
 
+  // Each thread handles an equal number of iterations.
   for (int i = s; i < statistic.maxTries && statistic.globalFlag;
-       i +=
-       statistic
-           .numThreads) {  // Each thread handles an equal number of iterations.
+       i += statistic.numThreads) {
     threadTries++;
 
     X = oracle->generate();
@@ -296,9 +297,7 @@ void BasisCalculator::getCounterExample(vector<implicationBS> &basis, int s) {
         lck.unlock();
         break;
       }
-    }
-
-    else {
+    } else {
       if (isSetEqualToImpCLosure(basis, X)) {
         lck.lock();
 
@@ -703,7 +702,8 @@ vector<string> BasisCalculator::getPrintResults(double totalExecTime) {
        to_string(statistic.emptySetClosureComputes)});
   printingResults.insert(printingResults.end(), results.begin(), results.end());
   auto supportResult = getSupportOfImplications();
-  printingResults.insert(printingResults.end(), supportResult.begin(), supportResult.end());
+  printingResults.insert(printingResults.end(), supportResult.begin(),
+                         supportResult.end());
   return printingResults;
 }
 
@@ -717,15 +717,20 @@ vector<string> BasisCalculator::getSupportOfImplications() {
     supports.push_back(support);
   }
 
+  if (supports.empty()) {
+    return {"0", "0", "0", "0", "0"};
+  }
+
   sort(supports.rbegin(), supports.rend());
   double meanSupport = accumulate(supports.begin(), supports.end(), 0);
   meanSupport /= supports.size();
 
   return {
-    to_string(100. * meanSupport / table.objInpBS.size()),
-    to_string(100. * supports[0.1 * supports.size()] / table.objInpBS.size()),
-    to_string(100. * supports[0.5 * supports.size()] / table.objInpBS.size()),
-    to_string(100. * supports[0.9 * supports.size()] / table.objInpBS.size()),
-    to_string(100. * supports[0.95 * supports.size()] / table.objInpBS.size()),
+      to_string(100. * meanSupport / table.objInpBS.size()),
+      to_string(100. * supports[0.1 * supports.size()] / table.objInpBS.size()),
+      to_string(100. * supports[0.5 * supports.size()] / table.objInpBS.size()),
+      to_string(100. * supports[0.9 * supports.size()] / table.objInpBS.size()),
+      to_string(100. * supports[0.95 * supports.size()] /
+                table.objInpBS.size()),
   };
 }

@@ -136,16 +136,11 @@ class SquaredFrequencyOracle : public UniformSubsetOracle {
       for (int j = i; j < table->objInpBS.size(); j++) {
         auto intersectionBS = table->objInpBS[i] & table->objInpBS[j];
         auto weight = (long double)pow((long double)2,
-                                       (long double)intersectionBS.count());
+                                  (long double)intersectionBS.count());
         if (i != j) {
           weight *= 2;
         }
-        if (auto it = objIntersectionWeight.find(intersectionBS);
-            it != objIntersectionWeight.end()) {
-          it->second += weight;
-        } else {
-          objIntersectionWeight[intersectionBS] = weight;
-        }
+        objIntersectionWeight[intersectionBS] += weight;
       }
     }
     return objIntersectionWeight;
@@ -155,19 +150,19 @@ class SquaredFrequencyOracle : public UniformSubsetOracle {
       std::vector<std::future<mapIntersectionType>> &resultFuture,
       const size_t start, const size_t end) {
     if (end - start < 2) {
-      return resultFuture[start].get();
+      return std::move(resultFuture[start].get());
     }
     size_t mid = (start + end) / 2;
     auto firstFuture =
-        std::async([&] { return mergeIntersections(resultFuture, start, mid); });
+        std::async([&] { return std::move(mergeIntersections(resultFuture, start, mid)); });
     auto secondFuture =
-        std::async([&] { return mergeIntersections(resultFuture, mid, end); });
+        std::async([&] { return std::move(mergeIntersections(resultFuture, mid, end)); });
     auto first = firstFuture.get();
     auto second = secondFuture.get();
     for (auto &elem : first) {
       second[elem.first] += elem.second;
     }
-    return second;
+    return std::move(second);
   }
 
   mapIntersectionType loadIntersection(size_t threadCount) {
@@ -176,7 +171,7 @@ class SquaredFrequencyOracle : public UniformSubsetOracle {
 
     for (size_t threadNumber = 0; threadNumber < threadCount; ++threadNumber) {
       objIntersectionWeightFutures.push_back(
-          std::async(&SquaredFrequencyOracle::loadIntersectionShard, this, 0,
+          std::async(&SquaredFrequencyOracle::loadIntersectionShard, this, threadNumber,
                      threadCount));
     }
 
@@ -190,6 +185,11 @@ class SquaredFrequencyOracle : public UniformSubsetOracle {
 
   SquaredFrequencyOracle(structs::Table *table, size_t threadCount)
       : UniformSubsetOracle(table) {
+    // Memory safety
+    if (table->objInp.size() > 45'000 && threadCount > 2) {
+        threadCount = 2;
+    }
+
     mapIntersectionType objIntersectionWeight(loadIntersection(threadCount));
     std::vector<long double> intersectionWeights;
     for (auto &intersection : objIntersectionWeight) {
