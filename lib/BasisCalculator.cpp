@@ -528,12 +528,11 @@ void BasisCalculator::tryToUpdateImplicationBasis(
         basis[statistic.implicationsSeen].rhs;
     int curIndex = statistic.implicationsSeen;
     statistic.implicationsSeen++;
+    statistic.aEqualToCCount++;
     lck.unlock();
     boost::dynamic_bitset<unsigned long> C = A & counterExampleBS;
-    statistic.aEqualToCCount++;
 
     if (A != C) {
-      statistic.aEqualToCCount--;
       auto durBegin = chrono::high_resolution_clock::now();
       boost::dynamic_bitset<unsigned long> cC = contextClosureBS(C);
       auto durEnd = chrono::high_resolution_clock::now();
@@ -543,10 +542,12 @@ void BasisCalculator::tryToUpdateImplicationBasis(
 
       if (C == cC) {
         lck.lock();
+        statistic.aEqualToCCount--;
         continue;
       }
 
       lck.lock();
+      statistic.aEqualToCCount--;
 
       if (!statistic.basisUpdate) {
         statistic.basisUpdate = true;
@@ -680,6 +681,14 @@ void BasisCalculator::printResults(double totalExecTime) {
     case kReadble:
     default:
       utils::printReadbleResult(getPrintResults(totalExecTime));
+      std::cout << "Basis\n";
+      for (auto el : basis) {
+          utils::printVector(el.lhs);
+          std::cout << " ===> ";
+          utils::printVector(el.rhs);
+          std::cout << "\n";
+      }
+      std::cout << std::flush;
       break;
   }
 }

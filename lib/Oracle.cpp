@@ -186,8 +186,8 @@ class SquaredFrequencyOracle : public UniformSubsetOracle {
   SquaredFrequencyOracle(structs::Table *table, size_t threadCount)
       : UniformSubsetOracle(table) {
     // Memory safety
-    if (table->objInp.size() > 45'000 && threadCount > 2) {
-        threadCount = 2;
+    if (table->objInp.size() > 45'000 && threadCount > 3) {
+        threadCount = 3;
     }
 
     mapIntersectionType objIntersectionWeight(loadIntersection(threadCount));

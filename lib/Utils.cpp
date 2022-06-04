@@ -43,7 +43,7 @@ void printUsageAndExit() {
 }
 
 void printVector(const std::vector<int> &A) {
-  for (auto x : A) {
+  for (const auto &x : A) {
     std::cout << x << " ";
   }
 }
