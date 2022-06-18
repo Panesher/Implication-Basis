@@ -159,9 +159,6 @@ boost::dynamic_bitset<unsigned long> BasisCalculator::contextClosureBS(
       if (aBS.is_subset_of(table.objInpBS[cObj])) {
         ansBS &= table.objInpBS[cObj];
       }
-
-      // if(ansBS.count() == aBS.count())
-      // 	return ansBS;
     }
   }
 

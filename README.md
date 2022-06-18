@@ -19,11 +19,11 @@
 - Running:
 - - `build/algo.out <path/to/context.txt> <Epsilon> <Delta> <strong/weak> <uniform/frequent/area-based/squared-frequency> <number of threads> none <print-format:csv/csv-with-header/readable>`
 - - Example: 
-- - `build/algo.out StandardDS/mushroom.txt 0.01 0.1 weak uniform 40 none readable`
+- - `build/algo.out datasets/StandardDS/mushroom.txt 0.01 0.1 weak uniform 40 none readable`
 - You can also use python script runner.py to run for every dataset in folder, every distribution and store result into file
 - - `python3 runner.py build/algo.out <path/to/context.txt> <path/to/output/file.csv> <Epsilon> <Delta> <number of threads>`
 - - Example:
-- - `python3 runner.py build/algo.out StandardDS out.csv 0.1 0.1 8`
+- - `python3 runner.py build/algo.out datasets/StandardDS out.csv 0.1 0.1 8`
 
 ### toCXT.cpp
 - Compilation - `g++ -o toCXT toCXT.cpp`

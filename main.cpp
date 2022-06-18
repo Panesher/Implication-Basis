@@ -31,20 +31,5 @@ int main(int argc, char **argv)
 	double totalExecTime = (chrono::duration_cast<chrono::microseconds>(endTime - startTime)).count();
 
   calc.printResults(totalExecTime);
-
-	// if (implicationSupport)
-	// {
-	// 	getSupportOfImplications();
-	// 	return 0;
-	// }
-
-	// cout << allContextClosures() << "," << flush;
-	// cout << allImplicationClosures() << endl;
-
-	// for (auto x : basis) {
-	// 	// //cout << "Implication\n";
-	// 	printVector(x.lhs);
-	// 	printVector(x.rhs);
-	// }
 	return 0;
 }
